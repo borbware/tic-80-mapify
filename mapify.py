@@ -15,6 +15,9 @@ IMAGE_WIDTH = 1920
 IMAGE_HEIGHT = 1088
 TILE_SIZE = 8
 
+ROOM_WIDTH = 240
+ROOM_HEIGHT = 136
+
 def split_to_chunks(text, chunk_size):
 	return textwrap.wrap(text, chunk_size)
 
@@ -119,7 +122,23 @@ def save_tile_as_png(cart, tile_id, modify_palette = None):
 		rows.append(row)
 	png.from_array(rows, "RGB").save("tile_{}.png".format(tile_id))
 
-def save_map_as_png(cart, modify_palette = None):
+def room_number(x, y):
+	return y * 10 + x
+
+HIDDEN_ROOMS = [
+	11, 12, 13, 14, 15, 16, 17, 18,
+	21, 22, 			26, 27, 28,
+	31, 32, 				37, 38,
+	41, 42, 					48,
+	51, 52, 53, 54, 		57, 58,
+	61, 62, 63, 64, 65, 66, 67, 68,
+	71, 72, 73, 74, 75, 76, 77, 78,
+	81, 82, 83, 84, 85, 86, 87, 88
+]
+REMOVE_COLUMNS = [1, 2, 8]
+REMOVE_LINES = [1, 6, 7, 8]
+
+def save_map_as_png(cart, cartname, modify_palette = None, borders = False, hidden = False):
 	tiles = get_tiles(cart)
 	palette = get_palette(cart, modify_palette)
 	map_cells = get_map(cart)
@@ -131,10 +150,30 @@ def save_map_as_png(cart, modify_palette = None):
 			map_x, map_y = floor(image_x / TILE_SIZE), floor(image_y / TILE_SIZE)
 			tile_x, tile_y = image_x % TILE_SIZE, image_y % TILE_SIZE
 			tile_id = map_cells[map_y][map_x]
-			color = tiles[tile_id][tile_y * TILE_SIZE + tile_x]
-			image_row += palette[color]
-		image.append(image_row)
-	png.from_array(image, "RGB").save("map.png")
+
+			room_x, room_y = floor(image_x / ROOM_WIDTH) + 1, floor(image_y / ROOM_HEIGHT) + 1
+
+			if borders and (image_x % ROOM_WIDTH == ROOM_WIDTH - 1 or image_y % ROOM_HEIGHT == ROOM_HEIGHT - 1 ):
+				color = 2
+			else:
+				if hidden and room_number(room_x, room_y) in HIDDEN_ROOMS:
+					color = 0
+				else:
+					color = tiles[tile_id][tile_y * TILE_SIZE + tile_x]
+
+			if not(hidden and room_x in REMOVE_COLUMNS):
+				image_row += palette[color]
+
+		if not(hidden and room_y in REMOVE_LINES):
+			image.append(image_row)
+	filename = cartname.rstrip(".lua")
+	if borders:
+		filename += "_borders"
+	if hidden:
+		filename += "_hidden"
+	filename += ".png"
+
+	png.from_array(image, "RGB").save(filename)
 
 def swap_transparent_to_black(palette):
 	palette[6] = palette[0]
@@ -146,9 +185,16 @@ if __name__ == "__main__":
 		description = "Generate a png map from a TIC-80 .lua cart. Output: map.png"
 	)
 	parser.add_argument("--version", action="version", version="%(prog)s {}".format(VERSION))
+	parser.add_argument("--borders", action="store_true", help="draw border lines between rooms")
+	parser.add_argument("--hidden", action="store_true", help="hide rooms listed in HIDDEN_ROOMS array")
 	parser.add_argument("cartfile", type=argparse.FileType("r"))
 	arguments = parser.parse_args()
 	with arguments.cartfile as cartfile:
 		cart = [line.rstrip() for line in cartfile.readlines()]
 
-	save_map_as_png(cart, swap_transparent_to_black)
+	save_map_as_png(
+		cart,
+		arguments.cartfile.name,
+		swap_transparent_to_black,
+		arguments.borders,
+		arguments.hidden )
