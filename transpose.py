@@ -71,20 +71,27 @@ def write_section(section_name, cart, new_section):
 		int_address = int(address)
 		try:
 			cart[line] = "-- " + address + ":" + new_section[int_address]
-		except IndexError: # ;D
+			print(address + " modified.")
+			print(cart[line])
+		except: # ;D
 			pass
 		line += 1
 	return cart
 
 
 def get_patterns(cart, start, end):
-	if not end:
-		end = start
 	start = int(start)
 	end = int(end)
+	if start < 1 or start > 60 or end < 1 or end > 60:
+		raise TypeError("Start and end values should be 1..60.")
+	if end < start:
+		print("end smaller than start. now end=start.")
+		end = start
 	pattern_section = read_section("PATTERNS", cart)
-	patterns = []
+	patterns = {}
+	print("Getting patterns from {} to {}.".format(start, end))
 	for i in range(start - 1, end):
+
 		decoded_pattern = []
 		# pattern 01 is line -- 000, 02 is -- 001 and so on.
 		# if start = 1 and end = 3, will transpose patterns 000, 001 and 002.
@@ -101,14 +108,15 @@ def get_patterns(cart, start, end):
 			for character in split_to_chunks(row, 1):
 				decoded_row.append(hex2int(character))
 			decoded_pattern.append(decoded_row)
-		patterns.append(decoded_pattern)
+		patterns[i] = decoded_pattern
+
 	return patterns
 
-def transpose_patterns(cart, cartname, start, end, transpose_halfstep):
+def transpose_patterns(cart, cartname, start, end, transpose_halfstep = 0, overwrite = False):
 	patterns = get_patterns(cart, start, end)
 	transpose_halfstep = int(transpose_halfstep)
-	encoded_patterns = []
-	for pattern in patterns:
+	encoded_patterns = {}
+	for index, pattern in patterns.items():
 		encoded_pattern = ""
 		for row in pattern:
 			if not (row[0] == 0 or row[0] == 1):
@@ -131,10 +139,13 @@ def transpose_patterns(cart, cartname, start, end, transpose_halfstep):
 			for char in row:
 				encoded_row += int2hex(char)
 			encoded_pattern += encoded_row
-		encoded_patterns.append(encoded_pattern)
+		encoded_patterns[index]=encoded_pattern
 
 	cart = write_section("PATTERNS", cart, encoded_patterns)
-	with open(cartname.rstrip(".lua") + "_transposed.lua", 'w') as f:
+	filename = cartname.rstrip(".lua") + "_transposed.lua"
+	if overwrite:
+		filename = cartname
+	with open(filename, 'w') as f:
 		for line in cart:
 			f.write("%s\n" % line)
 
@@ -147,8 +158,12 @@ if __name__ == "__main__":
 	parser.add_argument("cartfile", type=argparse.FileType("r"))
 	parser.add_argument("start", action="store")
 	parser.add_argument("end", action="store")
-	parser.add_argument("transpose", action="store")
+	parser.add_argument("--transpose", action="store")
+	parser.add_argument("--overwrite", action="store_true")
 	arguments = parser.parse_args()
+	transpose = 0
+	if arguments.transpose:
+		transpose = arguments.transpose
 	with arguments.cartfile as cartfile:
 		cart = [line.rstrip() for line in cartfile.readlines()]
 
@@ -157,5 +172,6 @@ if __name__ == "__main__":
 		arguments.cartfile.name,
 		arguments.start,
 		arguments.end,
-		arguments.transpose
+		transpose,	
+		arguments.overwrite,
 	)
