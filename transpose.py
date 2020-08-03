@@ -102,7 +102,6 @@ def get_patterns(cart, start, end):
 				decoded_row.append(hex2int(character))
 			decoded_pattern.append(decoded_row)
 		patterns.append(decoded_pattern)
-	print(patterns)
 	return patterns
 
 def transpose_patterns(cart, cartname, start, end, transpose_halfstep):
@@ -116,14 +115,14 @@ def transpose_patterns(cart, cartname, start, end, transpose_halfstep):
 				row[0] += transpose_halfstep
 				if transpose_halfstep > 0:
 					while row[0] > 15:
-						row[0] -= 16
+						row[0] -= 12
 						row[5] += 2
 					while row[5] > 14:
 						print("TOO BIG OCTAVE")
 						row[5] -= 2
 				elif transpose_halfstep < 0:
 					while row[0] < 4:
-						row[0] += 16
+						row[0] += 12
 						row[5] -= 1
 					while row[5] < 1:
 						print("TOO SMALL OCTAVE")
